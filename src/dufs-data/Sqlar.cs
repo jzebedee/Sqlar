@@ -35,11 +35,11 @@ namespace dufs_data
 
 #pragma warning disable CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
             (
-                cmd.Parameters.Add($"@{nameof(SqlarFile.name)}", SqliteType.Text).Value,
-                cmd.Parameters.Add($"@{nameof(SqlarFile.mode)}", SqliteType.Integer).Value,
-                cmd.Parameters.Add($"@{nameof(SqlarFile.mtime)}", SqliteType.Integer).Value,
-                cmd.Parameters.Add($"@{nameof(SqlarFile.sz)}", SqliteType.Integer).Value,
-                cmd.Parameters.Add($"@{nameof(SqlarFile.data)}", SqliteType.Blob).Value
+                cmd.Parameters.Add("@name", SqliteType.Text).Value,
+                cmd.Parameters.Add("@mode", SqliteType.Integer).Value,
+                cmd.Parameters.Add("@mtime", SqliteType.Integer).Value,
+                cmd.Parameters.Add("@sz", SqliteType.Integer).Value,
+                cmd.Parameters.Add("@data", SqliteType.Blob).Value
             ) = value;
 #pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
 
