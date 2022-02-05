@@ -11,17 +11,44 @@ namespace dufs_data
 
         public SqlarFile Decompress()
         {
+            if(!IsCompressed)
+            {
+                ThrowHelperNotCompressed();
+            }
+
             using var decompressor = new ZlibDecompressor();
 
             var inflatedData = new byte[sz];
             return decompressor.Decompress(data, inflatedData, out int bytesWritten) switch
             {
                 OperationStatus.Done => this with { data = inflatedData },
-                _ => ThrowHelper()
+                _ => ThrowHelperDecompressFailed()
             };
 
             [DoesNotReturn]
-            static SqlarFile ThrowHelper() => throw new InvalidOperationException();
+            static SqlarFile ThrowHelperDecompressFailed() => throw new InvalidOperationException("TODO: writeme");
+
+            [DoesNotReturn]
+            static void ThrowHelperNotCompressed() => throw new InvalidOperationException("TODO: writeme");
+        }
+
+        public SqlarFile Compress(int compressionLevel = 6)
+        {
+            if(IsCompressed)
+            {
+                ThrowHelperAlreadyCompressed();
+            }
+
+            using var compressor = new ZlibCompressor(compressionLevel);
+            using var result = compressor.Compress(data);
+            return result switch
+            {
+                IMemoryOwner<byte> deflatedOwner => this with { data = deflatedOwner.Memory.ToArray() },
+                null => this
+            };
+
+            [DoesNotReturn]
+            static void ThrowHelperAlreadyCompressed() => throw new InvalidOperationException("TODO: writeme");
         }
     }
 
@@ -49,7 +76,7 @@ namespace dufs_data
                 cmd.Parameters.Add("@mtime", SqliteType.Integer).Value,
                 cmd.Parameters.Add("@sz", SqliteType.Integer).Value,
                 cmd.Parameters.Add("@data", SqliteType.Blob).Value
-            ) = value;
+            ) = value.Compress();
 #pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
 
             cmd.CommandText = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
