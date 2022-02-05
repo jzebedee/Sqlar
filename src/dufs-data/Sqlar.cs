@@ -52,7 +52,7 @@ namespace dufs_data
         }
     }
 
-    public class Sqlar : IDisposable, IAsyncDisposable
+    public class Sqlar : IDisposable
     {
         private readonly SqliteConnection _connection;
         private bool disposedValue;
@@ -85,7 +85,6 @@ namespace dufs_data
 
         public SqlarFile Get(string name)
         {
-
             using var cmd = _connection.CreateCommand();
 
             cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
@@ -135,27 +134,6 @@ namespace dufs_data
             // TODO: free unmanaged resources (unmanaged objects) and override finalizer
             // TODO: set large fields to null
             disposedValue = true;
-        }
-
-        protected virtual async ValueTask DisposeAsyncCore()
-        {
-            if (disposedValue)
-            {
-                return;
-            }
-
-            await _connection.DisposeAsync();
-
-            // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-            // TODO: set large fields to null
-            disposedValue = true;
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            await DisposeAsyncCore();
-            Dispose(disposing: false);
-            GC.SuppressFinalize(this);
         }
 
         public void Dispose()
