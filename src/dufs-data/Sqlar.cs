@@ -11,7 +11,7 @@ namespace dufs_data
 
         public SqlarFile Decompress()
         {
-            using var decompressor = new DeflateDecompressor();
+            using var decompressor = new ZlibDecompressor();
 
             var inflatedData = new byte[sz];
             return decompressor.Decompress(data, inflatedData, out int bytesWritten) switch
