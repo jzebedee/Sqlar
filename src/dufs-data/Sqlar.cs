@@ -5,7 +5,25 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace dufs_data
 {
-    public record SqlarFile(string name, int mode, int mtime, int sz, byte[] data);
+    public record SqlarFile(string name, int mode, int mtime, int sz, byte[] data)
+    {
+        public bool IsCompressed => sz > data.Length;
+
+        public SqlarFile Decompress()
+        {
+            using var decompressor = new DeflateDecompressor();
+
+            var inflatedData = new byte[sz];
+            return decompressor.Decompress(data, inflatedData, out int bytesWritten) switch
+            {
+                OperationStatus.Done => this with { data = inflatedData },
+                _ => ThrowHelper()
+            };
+
+            [DoesNotReturn]
+            static SqlarFile ThrowHelper() => throw new InvalidOperationException();
+        }
+    }
 
     public class Sqlar : IDisposable, IAsyncDisposable
     {
