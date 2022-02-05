@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
@@ -7,8 +8,15 @@ namespace dufs_data.Tests
 {
     public class SqlarTests
     {
-        private SqliteConnection GetConnection([CallerMemberName] string dbName = "")
-            => new($"Data Source={dbName}.db");
+        private SqliteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true)
+        {
+            var db = $"{dbName}.db";
+            if (deleteExisting)
+            {
+                File.Delete(db);
+            }
+            return new($"Data Source={db}");
+        }
 
         [Fact]
         public void SqlarConnectionTest()
