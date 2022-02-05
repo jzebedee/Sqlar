@@ -33,12 +33,15 @@ namespace dufs_data
         {
             using var cmd = _connection.CreateCommand();
 
-            var paramName = cmd.Parameters.Add($"@{nameof(SqlarFile.name)}", SqliteType.Text);
-            var paramMode = cmd.Parameters.Add($"@{nameof(SqlarFile.mode)}", SqliteType.Integer);
-            var paramMtime = cmd.Parameters.Add($"@{nameof(SqlarFile.mtime)}", SqliteType.Integer);
-            var paramSz = cmd.Parameters.Add($"@{nameof(SqlarFile.sz)}", SqliteType.Integer);
-            var paramData = cmd.Parameters.Add($"@{nameof(SqlarFile.data)}", SqliteType.Blob);
-            (paramName.Value, paramMode.Value, paramMtime.Value, paramSz.Value, paramData.Value) = value;
+#pragma warning disable CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
+            (
+                cmd.Parameters.Add($"@{nameof(SqlarFile.name)}", SqliteType.Text).Value,
+                cmd.Parameters.Add($"@{nameof(SqlarFile.mode)}", SqliteType.Integer).Value,
+                cmd.Parameters.Add($"@{nameof(SqlarFile.mtime)}", SqliteType.Integer).Value,
+                cmd.Parameters.Add($"@{nameof(SqlarFile.sz)}", SqliteType.Integer).Value,
+                cmd.Parameters.Add($"@{nameof(SqlarFile.data)}", SqliteType.Blob).Value
+            ) = value;
+#pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
 
             cmd.CommandText = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
             cmd.ExecuteNonQuery();
