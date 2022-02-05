@@ -32,7 +32,26 @@ namespace dufs_data.Tests
             using var sqlar = new Sqlar(conn);
 
             byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            sqlar.Add("boogie.txt", new("boogie.txt", 0, 0, text.Length, text));
+            sqlar.Add(new("boogie.txt", 0, 0, text.Length, text));
+        }
+
+        [Fact]
+        public void SqlarGetFile()
+        {
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+            SqlarFile expected = new("boogie.txt", 0, 0, text.Length, text);
+
+            sqlar.Add(expected);
+
+            SqlarFile actual = sqlar[expected.name];
+            Assert.Equal(expected.name, actual.name);
+            Assert.Equal(expected.mode, actual.mode);
+            Assert.Equal(expected.mtime, actual.mtime);
+            Assert.Equal(expected.sz, actual.sz);
+            Assert.Equal(expected.data, actual.data);
         }
     }
 }

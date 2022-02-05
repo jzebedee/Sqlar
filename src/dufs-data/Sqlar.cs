@@ -1,12 +1,13 @@
-﻿using Microsoft.Data.Sqlite;
-using System.Collections;
+﻿using LibDeflate;
+using Microsoft.Data.Sqlite;
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 
 namespace dufs_data
 {
     public record SqlarFile(string name, int mode, int mtime, int sz, byte[] data);
 
-    public class Sqlar : IDictionary<string, SqlarFile>, IDisposable, IAsyncDisposable
+    public class Sqlar : IDisposable, IAsyncDisposable
     {
         private readonly SqliteConnection _connection;
         private bool disposedValue;
@@ -19,17 +20,7 @@ namespace dufs_data
             EnsureSqlar();
         }
 
-        public SqlarFile this[string key] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-        public ICollection<string> Keys => throw new NotImplementedException();
-
-        public ICollection<SqlarFile> Values => throw new NotImplementedException();
-
-        public int Count => throw new NotImplementedException();
-
-        public bool IsReadOnly => throw new NotImplementedException();
-
-        public void Add(string key, SqlarFile value)
+        public void Add(SqlarFile value)
         {
             using var cmd = _connection.CreateCommand();
 
@@ -47,49 +38,31 @@ namespace dufs_data
             cmd.ExecuteNonQuery();
         }
 
-        public void Add(KeyValuePair<string, SqlarFile> item)
+        public SqlarFile this[string name]
         {
-            throw new NotImplementedException();
-        }
+            get
+            {
+                using var cmd = _connection.CreateCommand();
 
-        public void Clear()
-        {
-            throw new NotImplementedException();
-        }
+                cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
 
-        public bool Contains(KeyValuePair<string, SqlarFile> item)
-        {
-            throw new NotImplementedException();
-        }
+                cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar WHERE name==@name";
 
-        public bool ContainsKey(string key)
-        {
-            throw new NotImplementedException();
-        }
+                using var reader = cmd.ExecuteReader();
+                if(!reader.Read())
+                {
+                    ThrowHelperNoResult();
+                }
 
-        public void CopyTo(KeyValuePair<string, SqlarFile>[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
-        }
+                return new(name: reader.GetString(0),
+                           mode: reader.GetInt32(1),
+                           mtime: reader.GetInt32(2),
+                           sz: reader.GetInt32(3),
+                           data: reader.GetFieldValue<byte[]>(4));//((SqliteBlob)reader.GetStream(4)).;
 
-        public IEnumerator<KeyValuePair<string, SqlarFile>> GetEnumerator()
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool Remove(string key)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool Remove(KeyValuePair<string, SqlarFile> item)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryGetValue(string key, [MaybeNullWhen(false)] out SqlarFile value)
-        {
-            throw new NotImplementedException();
+                [DoesNotReturn]
+                static void ThrowHelperNoResult() => throw new InvalidOperationException();
+            }
         }
 
         private void EnsureSqlar()
@@ -103,11 +76,6 @@ namespace dufs_data
   data BLOB               -- compressed content
 );";
             cmd.ExecuteNonQuery();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            throw new NotImplementedException();
         }
 
         protected virtual void Dispose(bool disposing)
