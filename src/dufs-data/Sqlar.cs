@@ -106,20 +106,14 @@ namespace dufs_data
                            data: reader.GetFieldValue<byte[]>(4));//((SqliteBlob)reader.GetStream(4)).;
 
                 [DoesNotReturn]
-                static void ThrowHelperNoResult() => throw new InvalidOperationException();
+                static void ThrowHelperNoResult() => throw new InvalidOperationException("TODO: writeme");
             }
         }
 
         private void EnsureSqlar()
         {
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = @"CREATE TABLE IF NOT EXISTS sqlar(
-  name TEXT PRIMARY KEY,  -- name of the file
-  mode INT,               -- access permissions
-  mtime INT,              -- last modification time
-  sz INT,                 -- original file size
-  data BLOB               -- compressed content
-);";
+            cmd.CommandText = @"CREATE TABLE IF NOT EXISTS sqlar(name TEXT PRIMARY KEY,mode INT,mtime INT,sz INT,data BLOB)";
             cmd.ExecuteNonQuery();
         }
 
