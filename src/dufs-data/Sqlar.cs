@@ -83,31 +83,34 @@ namespace dufs_data
             cmd.ExecuteNonQuery();
         }
 
+        public SqlarFile Get(string name)
+        {
+
+            using var cmd = _connection.CreateCommand();
+
+            cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+
+            cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar WHERE name==@name";
+
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                ThrowHelperNoResult();
+            }
+
+            return new(name: reader.GetString(0),
+                       mode: reader.GetInt32(1),
+                       mtime: reader.GetInt32(2),
+                       sz: reader.GetInt32(3),
+                       data: reader.GetFieldValue<byte[]>(4));//((SqliteBlob)reader.GetStream(4)).;
+
+            [DoesNotReturn]
+            static void ThrowHelperNoResult() => throw new InvalidOperationException("TODO: writeme");
+        }
+
         public SqlarFile this[string name]
         {
-            get
-            {
-                using var cmd = _connection.CreateCommand();
-
-                cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
-
-                cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar WHERE name==@name";
-
-                using var reader = cmd.ExecuteReader();
-                if(!reader.Read())
-                {
-                    ThrowHelperNoResult();
-                }
-
-                return new(name: reader.GetString(0),
-                           mode: reader.GetInt32(1),
-                           mtime: reader.GetInt32(2),
-                           sz: reader.GetInt32(3),
-                           data: reader.GetFieldValue<byte[]>(4));//((SqliteBlob)reader.GetStream(4)).;
-
-                [DoesNotReturn]
-                static void ThrowHelperNoResult() => throw new InvalidOperationException("TODO: writeme");
-            }
+            get => Get(name);
         }
 
         private void EnsureSqlar()
