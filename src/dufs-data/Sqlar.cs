@@ -66,6 +66,12 @@ namespace dufs_data
         }
 
         public void Add(SqlarFile value)
+            => SetCore(value, upsert: false);
+
+        public void Set(SqlarFile value)
+            => SetCore(value, upsert: true);
+
+        private void SetCore(SqlarFile value, bool upsert)
         {
             using var cmd = _connection.CreateCommand();
 
@@ -80,6 +86,10 @@ namespace dufs_data
 #pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
 
             cmd.CommandText = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
+            if(upsert)
+            {
+                cmd.CommandText += " ON CONFLICT(name) DO UPDATE SET mode=@mode,mtime=@mtime,sz=@sz,data=@data";
+            }
             cmd.ExecuteNonQuery();
         }
 
@@ -107,10 +117,11 @@ namespace dufs_data
             static void ThrowHelperNoResult() => throw new InvalidOperationException("TODO: writeme");
         }
 
-        public SqlarFile this[string name]
-        {
-            get => Get(name);
-        }
+        //we don't provide a setter here because the caller
+        //could provide one name in the indexer and another
+        //in the SqlarFile record, potentially inserting
+        //when they expected to update
+        public SqlarFile this[string name] => Get(name);
 
         private void EnsureSqlar()
         {

@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
@@ -75,5 +76,38 @@ namespace dufs_data.Tests
 
             Assert.Equal(text, uncompressed.data);
         }
+
+        [Fact]
+        public void SqlarSetFile()
+        {
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+            SqlarFile expected = new("boogie.txt", 0, 0, text.Length, text);
+
+            sqlar.Add(expected);
+
+            SqlarFile actual = sqlar[expected.name];
+            Assert.Equal(expected.name, actual.name);
+            Assert.Equal(expected.mode, actual.mode);
+            Assert.Equal(expected.mtime, actual.mtime);
+            Assert.Equal(expected.sz, actual.sz);
+            Assert.Equal(expected.data, actual.data);
+
+            Assert.Throws<SqliteException>(() => sqlar.Add(expected));
+
+            byte[] text2 = Encoding.UTF8.GetBytes("Goodbye, world.");
+            SqlarFile expected2 = expected with { mode = 1, mtime = 2, sz = text2.Length, data = text2 };
+            sqlar.Set(expected2);
+            var actual2 = sqlar[expected2.name];
+            Assert.Equal(expected2.name, actual2.name);
+            Assert.Equal(expected2.mode, actual2.mode);
+            Assert.Equal(expected2.mtime, actual2.mtime);
+            Assert.Equal(expected2.sz, actual2.sz);
+            Assert.Equal(expected2.data, actual2.data);
+        }
+
+
     }
 }
