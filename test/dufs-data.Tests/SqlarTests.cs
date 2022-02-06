@@ -1,5 +1,6 @@
-using Microsoft.Data.Sqlite;
+using System;
 using System.Collections.Generic;
+using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -10,15 +11,18 @@ namespace dufs_data.Tests
 {
     public class SqlarTests
     {
-        private SqliteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true, bool readOnly = false)
+        private static SQLiteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true, bool readOnly = false)
         {
             var db = $"{dbName}.db";
             if (deleteExisting)
             {
                 File.Delete(db);
             }
-            return new($"Data Source={db};{(readOnly ? "Mode=ReadOnly;" : "")}");
+            return new($"Data Source={db};{(readOnly ? "Read Only=true;" : "")}");
         }
+
+        private static byte[] SampleText => Encoding.UTF8.GetBytes("Hello, world!");
+        private static SqlarFile SampleFile => new("boogie.txt", 0, DateTimeOffset.Now.ToUnixTimeSeconds(), SampleText.Length, SampleText);
 
         [Fact]
         public void SqlarConnectionTest()
@@ -48,8 +52,8 @@ namespace dufs_data.Tests
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            sqlar.Add(new("boogie.txt", 0, 0, text.Length, text));
+            var file = SampleFile;
+            sqlar.Add(file);
         }
 
         [Fact]
@@ -60,8 +64,8 @@ namespace dufs_data.Tests
 
             Assert.Equal(0, sqlar.Count);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            sqlar.Add(new("boogie.txt", 0, 0, text.Length, text));
+            var file = SampleFile;
+            sqlar.Add(file);
 
             Assert.Equal(1, sqlar.Count);
         }
@@ -72,8 +76,7 @@ namespace dufs_data.Tests
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            var file = new SqlarFile("boogie1.txt", 0, 0, text.Length, text);
+            var file = SampleFile;
 
             sqlar.Add(file);
             sqlar.Add(file with { name = "boogie2.txt" });
@@ -90,8 +93,7 @@ namespace dufs_data.Tests
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            var file = new SqlarFile("boogie.txt", 0, 0, text.Length, text);
+            var file = SampleFile;
 
             Assert.False(sqlar.Contains(file.name));
 
@@ -106,8 +108,7 @@ namespace dufs_data.Tests
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            var innocent = new SqlarFile("innocent.txt", 0, 0, text.Length, text);
+            var innocent = SampleFile with { name = "innocent.txt" };
             var victim = innocent with { name = "victim.txt" };
 
             sqlar.Add(innocent);
@@ -123,9 +124,7 @@ namespace dufs_data.Tests
         {
             static IEnumerable<SqlarFile> GetTestFiles()
             {
-                byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-
-                var file1 = new SqlarFile("boogie1.txt", 0, 0, text.Length, text);
+                var file1 = SampleFile with { name = "boogie1.txt" };
                 yield return file1;
                 var file2 = file1 with { name = "boogie2.txt" };
                 yield return file2;
@@ -137,7 +136,7 @@ namespace dufs_data.Tests
             using var sqlar = new Sqlar(conn);
 
             var testFiles = GetTestFiles().ToArray();
-            foreach(var file in testFiles)
+            foreach (var file in testFiles)
             {
                 sqlar.Add(file);
             }
@@ -151,9 +150,7 @@ namespace dufs_data.Tests
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            SqlarFile expected = new("boogie.txt", 0, 0, text.Length, text);
-
+            SqlarFile expected = SampleFile;
             sqlar.Add(expected);
 
             SqlarFile actual = sqlar[expected.name];
@@ -167,13 +164,13 @@ namespace dufs_data.Tests
         [Fact]
         public void SqlarGetFileCompressed()
         {
-            const string lipsum = @"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ullamcorper metus tellus, vel faucibus lorem egestas a. In hac habitasse platea dictumst. Sed fermentum dignissim sapien, maximus faucibus orci efficitur et. Ut tristique luctus lacus aliquam varius. Aliquam ullamcorper semper libero a tincidunt. Curabitur in diam tincidunt, ultricies ante id, auctor magna. Quisque rhoncus scelerisque mi, interdum lobortis felis porttitor nec. Maecenas molestie non mauris in efficitur. Maecenas eu rhoncus arcu. Ut dapibus placerat risus, in efficitur massa consequat sed. Morbi dapibus laoreet eros, vitae dapibus turpis cursus id. Donec sem elit, consequat facilisis vehicula eu, euismod vel nisl. Maecenas ligula odio, luctus vitae sollicitudin quis, porttitor quis orci. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Vestibulum porta posuere neque eget interdum.";
-
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
+            const string lipsum = @"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ullamcorper metus tellus, vel faucibus lorem egestas a. In hac habitasse platea dictumst. Sed fermentum dignissim sapien, maximus faucibus orci efficitur et. Ut tristique luctus lacus aliquam varius. Aliquam ullamcorper semper libero a tincidunt. Curabitur in diam tincidunt, ultricies ante id, auctor magna. Quisque rhoncus scelerisque mi, interdum lobortis felis porttitor nec. Maecenas molestie non mauris in efficitur. Maecenas eu rhoncus arcu. Ut dapibus placerat risus, in efficitur massa consequat sed. Morbi dapibus laoreet eros, vitae dapibus turpis cursus id. Donec sem elit, consequat facilisis vehicula eu, euismod vel nisl. Maecenas ligula odio, luctus vitae sollicitudin quis, porttitor quis orci. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Vestibulum porta posuere neque eget interdum.";
             byte[] text = Encoding.UTF8.GetBytes(lipsum);
-            SqlarFile expected = new("lipsum.txt", 0, 0, text.Length, text);
+
+            SqlarFile expected = SampleFile with { name = "lipsum.txt", sz = text.Length, data = text };
 
             sqlar.Add(expected);
 
@@ -192,8 +189,7 @@ namespace dufs_data.Tests
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
 
-            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            SqlarFile expected = new("boogie.txt", 0, 0, text.Length, text);
+            SqlarFile expected = SampleFile;
 
             sqlar.Add(expected);
 
@@ -204,10 +200,10 @@ namespace dufs_data.Tests
             Assert.Equal(expected.sz, actual.sz);
             Assert.Equal(expected.data, actual.data);
 
-            Assert.Throws<SqliteException>(() => sqlar.Add(expected));
+            Assert.Throws<SQLiteException>(() => sqlar.Add(expected));
 
             byte[] text2 = Encoding.UTF8.GetBytes("Goodbye, world.");
-            SqlarFile expected2 = expected with { mode = 1, mtime = 2, sz = text2.Length, data = text2 };
+            SqlarFile expected2 = expected with { mode = 1, mtime = expected.mtime + 1, sz = text2.Length, data = text2 };
             sqlar.Set(expected2);
             var actual2 = sqlar[expected2.name];
             Assert.Equal(expected2.name, actual2.name);
@@ -216,7 +212,5 @@ namespace dufs_data.Tests
             Assert.Equal(expected2.sz, actual2.sz);
             Assert.Equal(expected2.data, actual2.data);
         }
-
-
     }
 }

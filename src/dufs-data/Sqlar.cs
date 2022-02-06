@@ -1,12 +1,13 @@
 ﻿using LibDeflate;
-using Microsoft.Data.Sqlite;
 using System.Buffers;
 using System.Collections;
+using System.Data;
+using System.Data.SQLite;
 using System.Diagnostics.CodeAnalysis;
 
 namespace dufs_data
 {
-    public record SqlarFile(string name, int mode, int mtime, int sz, byte[] data)
+    public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
     {
         public bool IsCompressed => sz > data.Length;
 
@@ -55,7 +56,7 @@ namespace dufs_data
 
     public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
-        private readonly SqliteConnection _connection;
+        private readonly SQLiteConnection _connection;
         private bool disposedValue;
 
         public int Count => checked((int)LongCount);
@@ -79,13 +80,13 @@ namespace dufs_data
 
         public bool IsReadOnly { get; }
 
-        public Sqlar(SqliteConnection connection)
+        public Sqlar(SQLiteConnection connection)
         {
             _connection = connection;
             _connection.Open();
 
-            var sqliteConnectionString = new SqliteConnectionStringBuilder(_connection.ConnectionString);
-            IsReadOnly = sqliteConnectionString.Mode == SqliteOpenMode.ReadOnly;
+            var sqliteConnectionString = new SQLiteConnectionStringBuilder(_connection.ConnectionString);
+            IsReadOnly = sqliteConnectionString.ReadOnly;
 
             EnsureSqlar();
         }
@@ -96,26 +97,23 @@ namespace dufs_data
         public void Set(SqlarFile value)
             => SetCore(value, upsert: true);
 
-        private SqlarFile ReadCore(SqliteDataReader reader)
+        private SqlarFile ReadCore(SQLiteDataReader reader)
             => new(name: reader.GetString(0),
                    mode: reader.GetInt32(1),
-                   mtime: reader.GetInt32(2),
-                   sz: reader.GetInt32(3),
+                   mtime: reader.GetInt64(2),
+                   sz: reader.GetInt64(3),
                    data: reader.GetFieldValue<byte[]>(4));
 
         private void SetCore(SqlarFile value, bool upsert)
         {
             using var cmd = _connection.CreateCommand();
 
-#pragma warning disable CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
-            (
-                cmd.Parameters.Add("@name", SqliteType.Text).Value,
-                cmd.Parameters.Add("@mode", SqliteType.Integer).Value,
-                cmd.Parameters.Add("@mtime", SqliteType.Integer).Value,
-                cmd.Parameters.Add("@sz", SqliteType.Integer).Value,
-                cmd.Parameters.Add("@data", SqliteType.Blob).Value
-            ) = value.Compress();
-#pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
+            value = value.Compress();
+            cmd.Parameters.Add("@name", DbType.String).Value = value.name;
+            cmd.Parameters.Add("@mode", DbType.Int32).Value = value.mode;
+            cmd.Parameters.Add("@mtime", DbType.Int64).Value = value.mtime;
+            cmd.Parameters.Add("@sz", DbType.Int64).Value = value.sz;
+            cmd.Parameters.Add("@data", DbType.Binary).Value = value.data;
 
             cmd.CommandText = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
             if (upsert)
@@ -129,7 +127,7 @@ namespace dufs_data
         {
             using var cmd = _connection.CreateCommand();
 
-            cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+            cmd.Parameters.Add("@name", DbType.String).Value = name;
 
             cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar WHERE name==@name";
 
@@ -192,7 +190,7 @@ namespace dufs_data
         {
             using var cmd = _connection.CreateCommand();
 
-            cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+            cmd.Parameters.Add("@name", DbType.String).Value = name;
 
             cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlar WHERE name==@name)";
 
@@ -204,7 +202,7 @@ namespace dufs_data
         {
             using var cmd = _connection.CreateCommand();
 
-            cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+            cmd.Parameters.Add("@name", DbType.String).Value = name;
 
             cmd.CommandText = "DELETE FROM sqlar WHERE name==@name";
 
@@ -219,7 +217,7 @@ namespace dufs_data
             cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar";
 
             using var reader = cmd.ExecuteReader();
-            while(reader.Read())
+            while (reader.Read())
             {
                 yield return ReadCore(reader);
             }
