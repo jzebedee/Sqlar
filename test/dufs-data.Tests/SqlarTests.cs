@@ -8,14 +8,14 @@ namespace dufs_data.Tests
 {
     public class SqlarTests
     {
-        private SqliteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true)
+        private SqliteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true, bool readOnly = false)
         {
             var db = $"{dbName}.db";
             if (deleteExisting)
             {
                 File.Delete(db);
             }
-            return new($"Data Source={db}");
+            return new($"Data Source={db};{(readOnly ? "Mode=ReadOnly;" : "")}");
         }
 
         [Fact]
@@ -23,6 +23,21 @@ namespace dufs_data.Tests
         {
             using var conn = GetConnection();
             using var sqlar = new Sqlar(conn);
+        }
+
+        [Fact]
+        public void SqlarReadOnlyDbTest()
+        {
+            {
+                using var conn = GetConnection(deleteExisting: false);
+                using var sqlar = new Sqlar(conn);
+                Assert.False(sqlar.IsReadOnly);
+            }
+            {
+                using var conn = GetConnection(deleteExisting: false, readOnly: true);
+                using var sqlar = new Sqlar(conn);
+                Assert.True(sqlar.IsReadOnly);
+            }
         }
 
         [Fact]
