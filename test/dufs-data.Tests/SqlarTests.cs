@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
@@ -114,6 +116,33 @@ namespace dufs_data.Tests
             sqlar.Remove(victim.name);
 
             Assert.Equal(1, sqlar.Count);
+        }
+
+        [Fact]
+        public void SqlarEnumerate()
+        {
+            static IEnumerable<SqlarFile> GetTestFiles()
+            {
+                byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+
+                var file1 = new SqlarFile("boogie1.txt", 0, 0, text.Length, text);
+                yield return file1;
+                var file2 = file1 with { name = "boogie2.txt" };
+                yield return file2;
+                var file3 = file1 with { name = "boogie3.txt" };
+                yield return file3;
+            }
+
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            var testFiles = GetTestFiles().ToArray();
+            foreach(var file in testFiles)
+            {
+                sqlar.Add(file);
+            }
+
+            Assert.Equal(testFiles.Select(rec => rec.name), sqlar.Select(rec => rec.name));
         }
 
         [Fact]

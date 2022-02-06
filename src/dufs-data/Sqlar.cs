@@ -96,6 +96,13 @@ namespace dufs_data
         public void Set(SqlarFile value)
             => SetCore(value, upsert: true);
 
+        private SqlarFile ReadCore(SqliteDataReader reader)
+            => new(name: reader.GetString(0),
+                   mode: reader.GetInt32(1),
+                   mtime: reader.GetInt32(2),
+                   sz: reader.GetInt32(3),
+                   data: reader.GetFieldValue<byte[]>(4));
+
         private void SetCore(SqlarFile value, bool upsert)
         {
             using var cmd = _connection.CreateCommand();
@@ -132,11 +139,7 @@ namespace dufs_data
                 ThrowHelperNoResult();
             }
 
-            return new(name: reader.GetString(0),
-                       mode: reader.GetInt32(1),
-                       mtime: reader.GetInt32(2),
-                       sz: reader.GetInt32(3),
-                       data: reader.GetFieldValue<byte[]>(4));//((SqliteBlob)reader.GetStream(4)).;
+            return ReadCore(reader);
 
             [DoesNotReturn]
             static void ThrowHelperNoResult() => throw new InvalidOperationException("TODO: writeme");
@@ -211,12 +214,18 @@ namespace dufs_data
 
         public IEnumerator<SqlarFile> GetEnumerator()
         {
-            throw new NotImplementedException();
+            using var cmd = _connection.CreateCommand();
+
+            cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar";
+
+            using var reader = cmd.ExecuteReader();
+            while(reader.Read())
+            {
+                yield return ReadCore(reader);
+            }
         }
 
         IEnumerator IEnumerable.GetEnumerator()
-        {
-            throw new NotImplementedException();
-        }
+            => GetEnumerator();
     }
 }
