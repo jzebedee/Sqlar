@@ -197,9 +197,16 @@ namespace dufs_data
             return Convert.ToBoolean(cmd.ExecuteScalar());
         }
 
-        public bool Remove(SqlarFile item)
+        public bool Remove(string name)
         {
-            throw new NotImplementedException();
+            using var cmd = _connection.CreateCommand();
+
+            cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+
+            cmd.CommandText = "DELETE FROM sqlar WHERE name==@name";
+
+            //returns long
+            return cmd.ExecuteNonQuery() > 0;
         }
 
         public IEnumerator<SqlarFile> GetEnumerator()

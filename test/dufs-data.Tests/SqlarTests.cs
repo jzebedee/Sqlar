@@ -89,13 +89,31 @@ namespace dufs_data.Tests
             using var sqlar = new Sqlar(conn);
 
             byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
-            var file = new SqlarFile("boogie1.txt", 0, 0, text.Length, text);
+            var file = new SqlarFile("boogie.txt", 0, 0, text.Length, text);
 
             Assert.False(sqlar.Contains(file.name));
 
             sqlar.Add(file);
 
             Assert.True(sqlar.Contains(file.name));
+        }
+
+        [Fact]
+        public void SqlarRemove()
+        {
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+            var innocent = new SqlarFile("innocent.txt", 0, 0, text.Length, text);
+            var victim = innocent with { name = "victim.txt" };
+
+            sqlar.Add(innocent);
+            sqlar.Add(victim);
+
+            sqlar.Remove(victim.name);
+
+            Assert.Equal(1, sqlar.Count);
         }
 
         [Fact]
