@@ -83,6 +83,22 @@ namespace dufs_data.Tests
         }
 
         [Fact]
+        public void SqlarContains()
+        {
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+            var file = new SqlarFile("boogie1.txt", 0, 0, text.Length, text);
+
+            Assert.False(sqlar.Contains(file.name));
+
+            sqlar.Add(file);
+
+            Assert.True(sqlar.Contains(file.name));
+        }
+
+        [Fact]
         public void SqlarGetFile()
         {
             using var conn = GetConnection();

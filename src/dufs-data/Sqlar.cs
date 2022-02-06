@@ -12,7 +12,7 @@ namespace dufs_data
 
         public SqlarFile Decompress()
         {
-            if(!IsCompressed)
+            if (!IsCompressed)
             {
                 ThrowHelperNotCompressed();
             }
@@ -35,7 +35,7 @@ namespace dufs_data
 
         public SqlarFile Compress(int compressionLevel = 6)
         {
-            if(IsCompressed)
+            if (IsCompressed)
             {
                 ThrowHelperAlreadyCompressed();
             }
@@ -53,7 +53,7 @@ namespace dufs_data
         }
     }
 
-    public class Sqlar : ICollection<SqlarFile>, IDisposable
+    public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
         private readonly SqliteConnection _connection;
         private bool disposedValue;
@@ -84,7 +84,7 @@ namespace dufs_data
             _connection = connection;
             _connection.Open();
 
-            var sqliteConnectionString= new SqliteConnectionStringBuilder(_connection.ConnectionString);
+            var sqliteConnectionString = new SqliteConnectionStringBuilder(_connection.ConnectionString);
             IsReadOnly = sqliteConnectionString.Mode == SqliteOpenMode.ReadOnly;
 
             EnsureSqlar();
@@ -111,7 +111,7 @@ namespace dufs_data
 #pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
 
             cmd.CommandText = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
-            if(upsert)
+            if (upsert)
             {
                 cmd.CommandText += " ON CONFLICT(name) DO UPDATE SET mode=@mode,mtime=@mtime,sz=@sz,data=@data";
             }
@@ -185,14 +185,16 @@ namespace dufs_data
             cmd.ExecuteNonQuery();
         }
 
-        public bool Contains(SqlarFile item)
+        public bool Contains(string name)
         {
-            throw new NotImplementedException();
-        }
+            using var cmd = _connection.CreateCommand();
 
-        public void CopyTo(SqlarFile[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
+            cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+
+            cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlar WHERE name==@name)";
+
+            //returns long
+            return Convert.ToBoolean(cmd.ExecuteScalar());
         }
 
         public bool Remove(SqlarFile item)
