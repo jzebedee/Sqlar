@@ -111,8 +111,14 @@ namespace dufs_data
         public void Add(SqlarFile value)
             => SetCore(value, upsert: false);
 
+        public void AddRange(IEnumerable<SqlarFile> files)
+            => SetRangeCore(files, upsert: false);
+
         public void Set(SqlarFile value)
             => SetCore(value, upsert: true);
+
+        public void SetRange(IEnumerable<SqlarFile> files)
+            => SetRangeCore(files, upsert: true);
 
         private SqlarFile ReadCore(SQLiteDataReader reader)
             => new(name: reader.GetString(0),
@@ -121,23 +127,45 @@ namespace dufs_data
                    sz: reader.GetInt64(3),
                    data: reader.GetFieldValue<byte[]>(4));
 
+        private SQLiteCommand CreateSetCommand(bool upsert/*, out (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) parameters*/)
+        {
+            const string InsertCommand = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
+            const string UpsertCommand = InsertCommand + " ON CONFLICT(name) DO UPDATE SET mode=@mode,mtime=@mtime,sz=@sz,data=@data";
+
+            var cmd = _connection.CreateCommand();
+
+            //(SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) = cmd;
+            //parameters = (name, mode, mtime, sz, data);
+
+            cmd.CommandText = upsert ? UpsertCommand : InsertCommand;
+            return cmd;
+        }
+
+        private void PopulateSetCommandParameters(SQLiteCommand cmd, SqlarFile value)
+        {
+            (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) = cmd;
+#pragma warning disable CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
+            (name.Value, mode.Value, mtime.Value, sz.Value, data.Value) = value;
+#pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
+        }
+
         private void SetCore(SqlarFile value, bool upsert)
         {
-            using var cmd = _connection.CreateCommand();
-
-            value = value.Compress();
-            cmd.Parameters.Add("@name", DbType.String).Value = value.name;
-            cmd.Parameters.Add("@mode", DbType.Int32).Value = value.mode;
-            cmd.Parameters.Add("@mtime", DbType.Int64).Value = value.mtime;
-            cmd.Parameters.Add("@sz", DbType.Int64).Value = value.sz;
-            cmd.Parameters.Add("@data", DbType.Binary).Value = value.data;
-
-            cmd.CommandText = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
-            if (upsert)
-            {
-                cmd.CommandText += " ON CONFLICT(name) DO UPDATE SET mode=@mode,mtime=@mtime,sz=@sz,data=@data";
-            }
+            using var cmd = CreateSetCommand(upsert);
+            PopulateSetCommandParameters(cmd, value.Compress());
             cmd.ExecuteNonQuery();
+        }
+
+        private void SetRangeCore(IEnumerable<SqlarFile> files, bool upsert)
+        {
+            using var bulkAddTrans = _connection.BeginTransaction();
+            using var cmd = CreateSetCommand(upsert);
+            foreach (var file in files)
+            {
+                PopulateSetCommandParameters(cmd, file.Compress());
+                cmd.ExecuteNonQuery();
+            }
+            bulkAddTrans.Commit();
         }
 
         public SqlarFile Get(string name)
