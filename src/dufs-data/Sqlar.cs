@@ -26,7 +26,7 @@ namespace dufs_data
     /// <param name="data">(Possibly) compressed content</param>
     public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
     {
-        public bool IsCompressed => sz > data.Length;
+        public bool IsCompressed => sz != data.Length;
 
         public SqlarFile Decompress()
         {
