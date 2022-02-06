@@ -1,6 +1,5 @@
 using Microsoft.Data.Sqlite;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
@@ -34,6 +33,38 @@ namespace dufs_data.Tests
 
             byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
             sqlar.Add(new("boogie.txt", 0, 0, text.Length, text));
+        }
+
+        [Fact]
+        public void SqlarGetCount()
+        {
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            Assert.Equal(0, sqlar.Count);
+
+            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+            sqlar.Add(new("boogie.txt", 0, 0, text.Length, text));
+
+            Assert.Equal(1, sqlar.Count);
+        }
+
+        [Fact]
+        public void SqlarClear()
+        {
+            using var conn = GetConnection();
+            using var sqlar = new Sqlar(conn);
+
+            byte[] text = Encoding.UTF8.GetBytes("Hello, world!");
+            var file = new SqlarFile("boogie1.txt", 0, 0, text.Length, text);
+
+            sqlar.Add(file);
+            sqlar.Add(file with { name = "boogie2.txt" });
+            sqlar.Add(file with { name = "boogie3.txt" });
+
+            sqlar.Clear();
+
+            Assert.Equal(0, sqlar.Count);
         }
 
         [Fact]

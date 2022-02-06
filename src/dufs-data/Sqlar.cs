@@ -1,6 +1,7 @@
 ﻿using LibDeflate;
 using Microsoft.Data.Sqlite;
 using System.Buffers;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 
 namespace dufs_data
@@ -52,15 +53,39 @@ namespace dufs_data
         }
     }
 
-    public class Sqlar : IDisposable
+    public class Sqlar : ICollection<SqlarFile>, IDisposable
     {
         private readonly SqliteConnection _connection;
         private bool disposedValue;
+
+        public int Count => checked((int)LongCount);
+        public long LongCount
+        {
+            get
+            {
+                using var cmd = _connection.CreateCommand();
+                cmd.CommandText = "SELECT COUNT(1) FROM sqlar";
+
+                return cmd.ExecuteScalar() switch
+                {
+                    long count => count,
+                    _ => ThrowHelperNoResult()
+                };
+
+                [DoesNotReturn]
+                static int ThrowHelperNoResult() => throw new InvalidOperationException("TODO: writeme");
+            }
+        }
+
+        public bool IsReadOnly { get; }
 
         public Sqlar(SqliteConnection connection)
         {
             _connection = connection;
             _connection.Open();
+
+            var sqliteConnectionString= new SqliteConnectionStringBuilder(_connection.ConnectionString);
+            IsReadOnly = sqliteConnectionString.Mode == SqliteOpenMode.ReadOnly;
 
             EnsureSqlar();
         }
@@ -151,6 +176,38 @@ namespace dufs_data
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        public void Clear()
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"DELETE FROM sqlar";
+            cmd.ExecuteNonQuery();
+        }
+
+        public bool Contains(SqlarFile item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CopyTo(SqlarFile[] array, int arrayIndex)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Remove(SqlarFile item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerator<SqlarFile> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new NotImplementedException();
         }
     }
 }
