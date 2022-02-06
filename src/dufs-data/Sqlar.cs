@@ -7,6 +7,23 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace dufs_data
 {
+    /// <summary>
+    /// The content and metadata of a single file in SQLAR representation.
+    /// <para>
+    /// The filename (the full pathname relative to the root of the archive) is in the "name" field. 
+    /// The "mode" field is an integer which is the unix-style access permissions for the file. 
+    /// "mtime" is the modification time of the file in seconds since 1970. 
+    /// "sz" is the original uncompressed size of the file. 
+    /// The "data" field contains the file content. 
+    /// The content is usually compressed using Deflate, though not always. 
+    /// If the "sz" field is equal to the size of the "data" field, then the content is stored uncompressed. 
+    /// </para>
+    /// </summary>
+    /// <param name="name">Name of the file</param>
+    /// <param name="mode">Access permissions</param>
+    /// <param name="mtime">Last modification time</param>
+    /// <param name="sz">Original file size</param>
+    /// <param name="data">(Possibly) compressed content</param>
     public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
     {
         public bool IsCompressed => sz > data.Length;
