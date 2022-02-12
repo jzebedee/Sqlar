@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections;
 using System.Data;
 using System.Data.SQLite;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 
@@ -33,7 +34,7 @@ public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
     {
         if (!IsCompressed)
         {
-            ThrowHelperNotCompressed();
+            return this;
         }
 
         using var decompressor = new ZlibDecompressor();
@@ -47,16 +48,13 @@ public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
 
         [DoesNotReturn]
         static SqlarFile ThrowHelperDecompressFailed() => throw new InvalidOperationException("TODO: writeme");
-
-        [DoesNotReturn]
-        static void ThrowHelperNotCompressed() => throw new InvalidOperationException("TODO: writeme");
     }
 
     public SqlarFile Compress(int compressionLevel = 6)
     {
         if (IsCompressed)
         {
-            ThrowHelperAlreadyCompressed();
+            return this;
         }
 
         using var compressor = new ZlibCompressor(compressionLevel);
@@ -66,9 +64,6 @@ public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
             IMemoryOwner<byte> deflatedOwner => this with { data = deflatedOwner.Memory.ToArray() },
             null => this
         };
-
-        [DoesNotReturn]
-        static void ThrowHelperAlreadyCompressed() => throw new InvalidOperationException("TODO: writeme");
     }
 }
 
@@ -136,14 +131,23 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
                reader.GetInt64(3),
                reader.GetInt64(4));
 
-        var blob = SQLiteBlob.Create(_connection, _connection.Database, "sqlar", "data", rowid, true);
-        var blobStream = new BlobStream(blob, true);
+        using var blob = SQLiteBlob.Create(_connection, _connection.Database, "sqlar", "data", rowid, true);
+        using var blobStream = new BlobStream(blob, true);
 
         var ms = new MemoryStream((int)sz);
-        var zlibStream = new ZLibStream(blobStream, CompressionMode.Decompress);
-        zlibStream.CopyTo(ms);
+        if (sz == blobStream.Length)
+        {
+            blobStream.CopyTo(ms);
+        }
+        else
+        {
+            using var zlibStream = new ZLibStream(blobStream, CompressionMode.Decompress);
+            zlibStream.CopyTo(ms);
+        }
 
-        return new(name, mode, mtime, sz, ms.ToArray());
+        var buffer = ms.GetBuffer();
+        Debug.Assert(buffer.Length == sz);
+        return new(name, mode, mtime, sz, buffer);
     }
 
     private SQLiteCommand CreateSetCommand(bool upsert/*, out (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) parameters*/)
