@@ -91,15 +91,9 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
         }
     }
 
-    public bool IsReadOnly { get; }
-
     public Sqlar(SQLiteConnection connection)
     {
-        _connection = connection;
-        _connection.Open();
-
-        var sqliteConnectionString = new SQLiteConnectionStringBuilder(_connection.ConnectionString);
-        IsReadOnly = sqliteConnectionString.ReadOnly;
+        _connection = connection.OpenAndReturn();
 
         EnsureSqlar();
     }
@@ -125,11 +119,13 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
 
     private SqlarFile ReadCoreBlob(SQLiteDataReader reader, int bufferSize = 0x1000)
     {
-        var (name, mode, mtime, sz, rowid) = (reader.GetString(0),
-               reader.GetInt32(1),
-               reader.GetInt64(2),
-               reader.GetInt64(3),
-               reader.GetInt64(4));
+#pragma warning disable CS8123 // The tuple element name is ignored because a different name or no name is specified by the assignment target.
+        var (name, mode, mtime, sz, rowid) = (name: reader.GetString(0),
+               mode: reader.GetInt32(1),
+               mtime: reader.GetInt64(2),
+               sz: reader.GetInt64(3),
+               rowid: reader.GetInt64(4));
+#pragma warning restore CS8123 // The tuple element name is ignored because a different name or no name is specified by the assignment target.
 
         using var blob = SQLiteBlob.Create(_connection, _connection.Database, "sqlar", "data", rowid, true);
         using var blobStream = new BlobStream(blob, true);
@@ -238,7 +234,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     private void EnsureSqlar()
     {
         using var cmd = _connection.CreateCommand();
-        cmd.CommandText = @"CREATE TABLE IF NOT EXISTS sqlar(name TEXT PRIMARY KEY,mode INT,mtime INT,sz INT,data BLOB)";
+        cmd.CommandText = "CREATE TABLE IF NOT EXISTS sqlar(name TEXT PRIMARY KEY,mode INT,mtime INT,sz INT,data BLOB)";
         cmd.ExecuteNonQuery();
     }
 
@@ -268,7 +264,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     public void Clear()
     {
         using var cmd = _connection.CreateCommand();
-        cmd.CommandText = @"DELETE FROM sqlar";
+        cmd.CommandText = "DELETE FROM sqlar";
         cmd.ExecuteNonQuery();
     }
 
@@ -278,7 +274,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
 
         cmd.Parameters.Add("@name", DbType.String).Value = name;
 
-        cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlar WHERE name==@name)";
+        cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlar WHERE name = @name)";
 
         //returns long
         return Convert.ToBoolean(cmd.ExecuteScalar());
@@ -290,7 +286,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
 
         cmd.Parameters.Add("@name", DbType.String).Value = name;
 
-        cmd.CommandText = "DELETE FROM sqlar WHERE name==@name";
+        cmd.CommandText = "DELETE FROM sqlar WHERE name = @name";
 
         //returns long
         return cmd.ExecuteNonQuery() > 0;
