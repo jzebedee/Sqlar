@@ -34,16 +34,10 @@ namespace dufs_data.Tests
         [Fact]
         public void SqlarReadOnlyDbTest()
         {
-            {
-                using var conn = GetConnection(deleteExisting: false);
-                using var sqlar = new Sqlar(conn);
-                Assert.False(sqlar.IsReadOnly);
-            }
-            {
-                using var conn = GetConnection(deleteExisting: false, readOnly: true);
-                using var sqlar = new Sqlar(conn);
-                Assert.True(sqlar.IsReadOnly);
-            }
+            using var conn = GetConnection(deleteExisting: false, readOnly: true);
+            using var sqlar = new Sqlar(conn);
+            var file = SampleFile;
+            Assert.Throws<SQLiteException>(() => sqlar.Add(file));
         }
 
         [Fact]
