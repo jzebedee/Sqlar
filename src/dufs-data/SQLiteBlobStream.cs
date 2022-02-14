@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace dufs_data;
 
-public sealed class BlobStream : Stream
+public sealed class SQLiteBlobStream : Stream
 {
     private readonly SQLiteBlob _blob;
     private readonly bool _readOnly;
@@ -13,7 +13,7 @@ public sealed class BlobStream : Stream
     private int _count;
     private int _offset;
 
-    public BlobStream(SQLiteBlob blob, bool readOnly, bool leaveOpen = false)
+    public SQLiteBlobStream(SQLiteBlob blob, bool readOnly, bool leaveOpen = false)
     {
         _blob = blob;
         _readOnly = readOnly;
