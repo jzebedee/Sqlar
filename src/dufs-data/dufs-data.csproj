@@ -1,15 +1,35 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>dufs_data</RootNamespace>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<RootNamespace>dufs_data</RootNamespace>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
 
-  <ItemGroup>
-    <PackageReference Include="LibDeflate.NET" Version="1.9.1" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.115.5" />
-  </ItemGroup>
+		<!--<DefineConstants>MICROSOFT_SQLITE</DefineConstants>-->
+		<DefineConstants>OFFICIAL_SQLITE</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="LibDeflate.NET" Version="1.9.1" />
+	</ItemGroup>
+
+	<Choose>
+		<!-- This bit of gore to match a specific define constant comes from:
+		https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild-conditional-constructs?view=vs-2022
+		-->
+		<When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*;)*OFFICIAL_SQLITE(;.*)*$'))">
+			<ItemGroup>
+				<PackageReference Include="System.Data.SQLite.Core" Version="1.0.115.5" />
+			</ItemGroup>
+		</When>
+		<When Condition="$([System.Text.RegularExpressions.Regex]::IsMatch($(DefineConstants), '^(.*;)*MICROSOFT_SQLITE(;.*)*$'))">
+			<ItemGroup>
+				<PackageReference Include="Microsoft.Data.SQLite" Version="6.0.2" />
+				<Compile Remove="SQLiteBlobStream.cs" />
+				<None Include="SQLiteBlobStream.cs" />
+			</ItemGroup>
+		</When>
+	</Choose>
 
 </Project>

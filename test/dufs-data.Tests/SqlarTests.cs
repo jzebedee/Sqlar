@@ -1,24 +1,39 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Xunit;
+#if MICROSOFT_SQLITE
+using Microsoft.Data.Sqlite;
+using LiteConnection = Microsoft.Data.Sqlite.SqliteConnection;
+using LiteException = Microsoft.Data.Sqlite.SqliteException;
+#elif OFFICIAL_SQLITE
+using System.Data.SQLite;
+using LiteConnection = System.Data.SQLite.SQLiteConnection;
+using LiteException = System.Data.SQLite.SQLiteException;
+#endif
 
 namespace dufs_data.Tests
 {
     public class SqlarTests
     {
-        private static SQLiteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true, bool readOnly = false)
+        private static LiteConnection GetConnection([CallerMemberName] string dbName = "", bool deleteExisting = true, bool readOnly = false)
         {
             var db = $"{dbName}.db";
             if (deleteExisting)
             {
                 File.Delete(db);
             }
-            return new($"Data Source={db};{(readOnly ? "Read Only=true;" : "")}");
+            string readOnlyOption = readOnly ?
+#if MICROSOFT_SQLITE
+                "Mode=ReadOnly;"
+#elif OFFICIAL_SQLITE
+                "Read Only=true;"
+#endif
+                : "";
+            return new($"Data Source={db};{readOnlyOption}");
         }
 
         private static byte[] SampleText => Encoding.UTF8.GetBytes("Hello, world!");
@@ -37,7 +52,7 @@ namespace dufs_data.Tests
             using var conn = GetConnection(deleteExisting: false, readOnly: true);
             using var sqlar = new Sqlar(conn);
             var file = SampleFile;
-            Assert.Throws<SQLiteException>(() => sqlar.Add(file));
+            Assert.Throws<LiteException>(() => sqlar.Add(file));
         }
 
         [Fact]
@@ -194,7 +209,7 @@ namespace dufs_data.Tests
             Assert.Equal(expected.sz, actual.sz);
             Assert.Equal(expected.data, actual.data);
 
-            Assert.Throws<SQLiteException>(() => sqlar.Add(expected));
+            Assert.Throws<LiteException>(() => sqlar.Add(expected));
 
             byte[] text2 = Encoding.UTF8.GetBytes("Goodbye, world.");
             SqlarFile expected2 = expected with { mode = 1, mtime = expected.mtime + 1, sz = text2.Length, data = text2 };

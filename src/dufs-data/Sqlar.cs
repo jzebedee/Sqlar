@@ -1,12 +1,25 @@
 ﻿using LibDeflate;
 using System.Buffers;
 using System.Collections;
-using System.Data;
-using System.Data.SQLite;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
-
+#if MICROSOFT_SQLITE
+using Microsoft.Data.Sqlite;
+using LiteConnection = Microsoft.Data.Sqlite.SqliteConnection;
+using LiteParameter = Microsoft.Data.Sqlite.SqliteParameter;
+using LiteDataReader = Microsoft.Data.Sqlite.SqliteDataReader;
+using LiteBlob = Microsoft.Data.Sqlite.SqliteBlob;
+using LiteCommand = Microsoft.Data.Sqlite.SqliteCommand;
+#elif OFFICIAL_SQLITE
+using System.Data;
+using System.Data.SQLite;
+using LiteConnection = System.Data.SQLite.SQLiteConnection;
+using LiteParameter = System.Data.SQLite.SQLiteParameter;
+using LiteDataReader = System.Data.SQLite.SQLiteDataReader;
+using LiteBlob = System.Data.SQLite.SQLiteBlob;
+using LiteCommand = System.Data.SQLite.SQLiteCommand;
+#endif
 namespace dufs_data;
 
 /// <summary>
@@ -69,7 +82,7 @@ public record SqlarFile(string name, int mode, long mtime, long sz, byte[] data)
 
 public class Sqlar : IEnumerable<SqlarFile>, IDisposable
 {
-    private readonly SQLiteConnection _connection;
+    private readonly LiteConnection _connection;
     private bool disposedValue;
 
     public int Count => checked((int)LongCount);
@@ -91,9 +104,11 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
         }
     }
 
-    public Sqlar(SQLiteConnection connection)
+    public Sqlar(LiteConnection connection)
     {
-        _connection = connection.OpenAndReturn();
+        connection.Open();
+
+        _connection = connection;
 
         EnsureSqlar();
     }
@@ -110,14 +125,14 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     public void SetRange(IEnumerable<SqlarFile> files)
         => SetRangeCore(files, upsert: true);
 
-    private SqlarFile ReadCore(SQLiteDataReader reader)
+    private SqlarFile ReadCore(LiteDataReader reader)
         => new(name: reader.GetString(0),
                mode: reader.GetInt32(1),
                mtime: reader.GetInt64(2),
                sz: reader.GetInt64(3),
                data: reader.GetFieldValue<byte[]>(4));
 
-    private SqlarFile ReadCoreBlob(SQLiteDataReader reader, int bufferSize = 0x1000)
+    private SqlarFile ReadCoreBlob(LiteDataReader reader, int bufferSize = 0x1000)
     {
 #pragma warning disable CS8123 // The tuple element name is ignored because a different name or no name is specified by the assignment target.
         var (name, mode, mtime, sz, rowid) = (name: reader.GetString(0),
@@ -127,8 +142,12 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
                rowid: reader.GetInt64(4));
 #pragma warning restore CS8123 // The tuple element name is ignored because a different name or no name is specified by the assignment target.
 
-        using var blob = SQLiteBlob.Create(_connection, _connection.Database, "sqlar", "data", rowid, true);
-        using var blobStream = new BlobStream(blob, true);
+#if MICROSOFT_SQLITE
+        using var blobStream = new LiteBlob(_connection, _connection.Database, "sqlar", "data", rowid, true);
+#elif OFFICIAL_SQLITE
+        using var blob = LiteBlob.Create(_connection, _connection.Database, "sqlar", "data", rowid, true);
+        using var blobStream = new SQLiteBlobStream(blob, true);
+#endif
 
         var ms = new MemoryStream((int)sz);
         if (sz == blobStream.Length)
@@ -146,7 +165,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
         return new(name, mode, mtime, sz, buffer);
     }
 
-    private SQLiteCommand CreateSetCommand(bool upsert/*, out (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) parameters*/)
+    private LiteCommand CreateSetCommand(bool upsert/*, out (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) parameters*/)
     {
         const string InsertCommand = "INSERT INTO sqlar(name,mode,mtime,sz,data) VALUES(@name,@mode,@mtime,@sz,@data)";
         const string UpsertCommand = InsertCommand + " ON CONFLICT(name) DO UPDATE SET mode=@mode,mtime=@mtime,sz=@sz,data=@data";
@@ -163,7 +182,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     private void SetCore(SqlarFile value, bool upsert)
     {
         using var cmd = CreateSetCommand(upsert);
-        (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) = cmd;
+        (LiteParameter name, LiteParameter mode, LiteParameter mtime, LiteParameter sz, LiteParameter data) = cmd;
 #pragma warning disable CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
         (name.Value, mode.Value, mtime.Value, sz.Value, data.Value) = value.Compress();
 #pragma warning restore CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
@@ -174,7 +193,7 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
         using var bulkAddTrans = _connection.BeginTransaction();
         using var cmd = CreateSetCommand(upsert);
-        (SQLiteParameter name, SQLiteParameter mode, SQLiteParameter mtime, SQLiteParameter sz, SQLiteParameter data) = cmd;
+        (LiteParameter name, LiteParameter mode, LiteParameter mtime, LiteParameter sz, LiteParameter data) = cmd;
         foreach (var file in files)
         {
 #pragma warning disable CS8624 // Argument cannot be used as an output for parameter due to differences in the nullability of reference types.
@@ -189,7 +208,11 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
         using var cmd = _connection.CreateCommand();
 
+#if MICROSOFT_SQLITE
+        cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+#elif OFFICIAL_SQLITE
         cmd.Parameters.Add("@name", DbType.String).Value = name;
+#endif
 
         cmd.CommandText = "SELECT name,mode,mtime,sz,data FROM sqlar WHERE name==@name";
 
@@ -209,7 +232,11 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
         using var cmd = _connection.CreateCommand();
 
+#if MICROSOFT_SQLITE
+        cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+#elif OFFICIAL_SQLITE
         cmd.Parameters.Add("@name", DbType.String).Value = name;
+#endif
 
         cmd.CommandText = "SELECT name,mode,mtime,sz,rowid FROM sqlar WHERE name = @name";
 
@@ -272,7 +299,11 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
         using var cmd = _connection.CreateCommand();
 
+#if MICROSOFT_SQLITE
+        cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+#elif OFFICIAL_SQLITE
         cmd.Parameters.Add("@name", DbType.String).Value = name;
+#endif
 
         cmd.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlar WHERE name = @name)";
 
@@ -284,7 +315,11 @@ public class Sqlar : IEnumerable<SqlarFile>, IDisposable
     {
         using var cmd = _connection.CreateCommand();
 
+#if MICROSOFT_SQLITE
+        cmd.Parameters.Add("@name", SqliteType.Text).Value = name;
+#elif OFFICIAL_SQLITE
         cmd.Parameters.Add("@name", DbType.String).Value = name;
+#endif
 
         cmd.CommandText = "DELETE FROM sqlar WHERE name = @name";
 
