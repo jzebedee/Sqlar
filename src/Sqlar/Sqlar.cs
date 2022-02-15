@@ -13,14 +13,14 @@ using LiteBlob = Microsoft.Data.Sqlite.SqliteBlob;
 using LiteCommand = Microsoft.Data.Sqlite.SqliteCommand;
 #elif OFFICIAL_SQLITE
 using System.Data;
-using System.Data.SQLite;
 using LiteConnection = System.Data.SQLite.SQLiteConnection;
 using LiteParameter = System.Data.SQLite.SQLiteParameter;
 using LiteDataReader = System.Data.SQLite.SQLiteDataReader;
 using LiteBlob = System.Data.SQLite.SQLiteBlob;
 using LiteCommand = System.Data.SQLite.SQLiteCommand;
 #endif
-namespace dufs_data;
+
+namespace Sqlar;
 
 /// <summary>
 /// The content and metadata of a single file in SQLAR representation.

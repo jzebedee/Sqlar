@@ -1,8 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("dufs-data.Tests")]
-
-namespace dufs_data;
+﻿namespace Sqlar;
 
 internal static class Utility
 {

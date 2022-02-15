@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\dufs-data\dufs-data.csproj" />
+    <ProjectReference Include="..\..\src\Sqlar\Sqlar.csproj" />
   </ItemGroup>
 
 </Project>

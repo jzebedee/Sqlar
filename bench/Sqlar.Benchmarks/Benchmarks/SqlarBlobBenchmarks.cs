@@ -1,5 +1,4 @@
 ﻿using BenchmarkDotNet.Attributes;
-using dufs_data;
 using System.Buffers;
 using System.Data.SQLite;
 
@@ -22,7 +21,7 @@ public class SqlarBlobBenchmarks
     public void BufferInsert()
     {
         using var conn = new SQLiteConnection("Data Source=:memory:");
-        using var sqlar = new dufs_data.Sqlar(conn);
+        using var sqlar = new Sqlar(conn);
 
         byte[]? buf = null;
         try
@@ -35,7 +34,7 @@ public class SqlarBlobBenchmarks
         }
         finally
         {
-            if(buf is not null)
+            if (buf is not null)
             {
                 ArrayPool<byte>.Shared.Return(buf);
             }

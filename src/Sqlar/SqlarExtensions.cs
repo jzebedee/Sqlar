@@ -4,12 +4,11 @@ using LiteCommand = Microsoft.Data.Sqlite.SqliteCommand;
 using LiteParameter = Microsoft.Data.Sqlite.SqliteParameter;
 #elif OFFICIAL_SQLITE
 using System.Data;
-using System.Data.SQLite;
 using LiteCommand = System.Data.SQLite.SQLiteCommand;
 using LiteParameter = System.Data.SQLite.SQLiteParameter;
 #endif
 
-namespace dufs_data;
+namespace Sqlar;
 
 public static class SqlarExtensions
 {

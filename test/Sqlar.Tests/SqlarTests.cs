@@ -10,12 +10,11 @@ using Microsoft.Data.Sqlite;
 using LiteConnection = Microsoft.Data.Sqlite.SqliteConnection;
 using LiteException = Microsoft.Data.Sqlite.SqliteException;
 #elif OFFICIAL_SQLITE
-using System.Data.SQLite;
 using LiteConnection = System.Data.SQLite.SQLiteConnection;
 using LiteException = System.Data.SQLite.SQLiteException;
 #endif
 
-namespace dufs_data.Tests
+namespace Sqlar.Tests
 {
     public class SqlarTests
     {

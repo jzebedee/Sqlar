@@ -1,7 +1,7 @@
 ﻿using System.Data.SQLite;
 using System.Diagnostics.CodeAnalysis;
 
-namespace dufs_data;
+namespace Sqlar;
 
 public sealed class SQLiteBlobStream : Stream
 {
